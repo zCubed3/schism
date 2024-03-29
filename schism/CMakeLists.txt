@@ -8,4 +8,7 @@ file(GLOB_RECURSE SCHISM_SRC_FILES
 
 add_executable(schism ${SCHISM_SRC_FILES})
 
-target_include_directories(schism PUBLIC ${SCHISM_ROOT_DIR})
+target_include_directories(schism PUBLIC
+    ${SCHISM_ROOT_DIR}
+    ${stb_SOURCE_DIR}
+)

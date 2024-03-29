@@ -17,6 +17,19 @@ set(CMAKE_PDB_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/lib")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY})
 
+# ================
+#   Dependencies
+# ================
+include(FetchContent)
+
+FetchContent_Declare(
+        STB
+        GIT_REPOSITORY https://github.com/nothings/stb.git
+        GIT_TAG        ae721c50eaf761660b4f90cc590453cdb0c2acd0
+)
+
+FetchContent_MakeAvailable(STB)
+
 # ============
 #   Projects
 # ============

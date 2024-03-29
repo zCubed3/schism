@@ -37,10 +37,12 @@
 #include <fstream>
 #include <algorithm>
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image_write.h>
+
 #include <schism/sc_module.hpp>
 #include <schism/sc_operations.hpp>
 #include <schism/sc_assembler.hpp>
-#include <schism/placeholder/bmp.hpp>
 
 
 typedef union scValue {
@@ -385,9 +387,11 @@ int main() {
 
     module.LoadFromFile("test.scsm");
 
-    const int WIDTH = 512;
-    const int HEIGHT = 512;
-    char bytes[WIDTH * HEIGHT * 3];
+    const int WIDTH = 64;
+    const int HEIGHT = 64;
+
+    std::vector<char> bytes;
+    bytes.resize(WIDTH * HEIGHT * 3);
 
     scVM<512> vm;
 
@@ -397,10 +401,8 @@ int main() {
 
     // For each pixel, we will execute the virtual machine, starting anew each time
     for (int y = 0; y < HEIGHT; y++) {
-        int inv_y = HEIGHT - 1 - y;
-
         for (int x = 0; x < WIDTH; x++) {
-            int stride = (inv_y * WIDTH * 3) + (x * 3);
+            int stride = (y * WIDTH * 3) + (x * 3);
 
             vm.Poke<float>(0, x);
             vm.Poke<float>(sizeof(int), y);
@@ -408,13 +410,13 @@ int main() {
             vm.ResetRegisters();
             vm.ExecuteModule(module);
 
-            bytes[stride + 2] = vm.GetRegOUT0();
+            bytes[stride] = vm.GetRegOUT0();
             bytes[stride + 1] = vm.GetRegOUT1();
-            bytes[stride] = vm.GetRegOUT2();
+            bytes[stride + 2] = vm.GetRegOUT2();
         }
     }
 
-    scWriteBMP("./test.bmp", WIDTH, HEIGHT, bytes);
+    stbi_write_jpg("./test.jpg", WIDTH, HEIGHT, 3, bytes.data(), 100);
 
     //std::cout.flush();
     return 0;
