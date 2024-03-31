@@ -36,61 +36,6 @@
 #include <schism/sc_operations.hpp>
 #include <iostream>
 
-// TODO: Move this
-const char* scGetOperationName(scOperation op) {
-    switch (op) {
-        // =================
-        //  VM Manipulation
-        // =================
-        case scOperation::OpExitProgram:
-            return "OpExitProgram";
-
-        case scOperation::OpTXROut0:
-            return "OpTXROut0";
-
-        case scOperation::OpTXROut1:
-            return "OpTXROut1";
-
-        case scOperation::OpTXROut2:
-            return "OpTXROut2";
-
-        case scOperation::OpTXROut3:
-            return "OpTXROut3";
-
-        // =================
-        //  Push operations
-        // =================
-        case scOperation::OpPushF32:
-            return "OpPushF32";
-
-        case scOperation::OpPushF64:
-            return "OpPushF64";
-
-        case scOperation::OpPushI16:
-            return "OpPushI16";
-
-        case scOperation::OpPushI32:
-            return "OpPushI32";
-
-        // =================
-        //  Math Operations
-        // =================
-        case scOperation::OpAddF32F32:
-            return "OpAddF32F32";
-
-        case scOperation::OpSubF32F32:
-            return "OpSubF32F32";
-
-        case scOperation::OpMulF32F32:
-            return "OpMulF32F32";
-
-        case scOperation::OpDivF32F32:
-            return "OpDivF32f32";
-    }
-
-    return "UNKNOWN OPERATION!";
-}
-
 void scAssembledProgram::WriteToFile(const std::string& path) {
     std::ofstream file(path, std::ofstream::binary);
 
@@ -144,117 +89,260 @@ scAssemblerState scAssembler::CompileSourceFile(const std::string& path, scAssem
         std::vector<std::string> args;
 
         while (hasArgs) {
-            args.emplace_back(afterOperation.substr(0, nextSpace));
-
             nextSpace = afterOperation.find_first_of(' ');
 
             if (nextSpace != std::string::npos) {
+                args.push_back(afterOperation.substr(0, nextSpace));
                 afterOperation = afterOperation.substr(nextSpace + 1);
             } else {
                 break;
             }
         }
 
-        /* DEBUGGING
-        std::cout << operation << std::endl;
+        // Check if there is still string remaining
+        if (hasArgs && !afterOperation.empty())
+            args.push_back(afterOperation);
 
-        for (const auto& arg: args) {
-            std::cout << arg << std::endl;
-        }
-        */
+        scAssemblerState state = scAssemblerState::UnknownInstruction;
 
-        // TODO: Replace this mess later
+        state = AssembleGroupZero(program, operation, args);
 
-        // =================
-        //  VM Manipulation
-        // =================
-        if (operation == "EXIT") {
-            Emit(program, scOperation::OpExitProgram);
-
-            continue;
+        if (state == scAssemblerState::UnknownInstruction) {
+            std::cout << "[scAssembler]: Unknown group zero instruction (" << operation << ")" << std::endl;
+            return state;
         }
 
-        if (operation == "TXR_OUT0") {
-            Emit(program, scOperation::OpTXROut0);
+        state = AssembleGroupOne(program, operation, args);
 
-            continue;
+        if (state == scAssemblerState::UnknownInstruction) {
+            std::cout << "[scAssembler]: Unknown group one instruction (" << operation << ")" << std::endl;
+            return state;
         }
 
-        if (operation == "TXR_OUT1") {
-            Emit(program, scOperation::OpTXROut1);
+        state = AssembleGroupTwo(program, operation, args);
 
-            continue;
+        if (state == scAssemblerState::UnknownInstruction) {
+            std::cout << "[scAssembler]: Unknown group two instruction (" << operation << ")" << std::endl;
+            return state;
         }
-
-        if (operation == "TXR_OUT2") {
-            Emit(program, scOperation::OpTXROut2);
-
-            continue;
-        }
-
-        if (operation == "TXR_OUT3") {
-            Emit(program, scOperation::OpTXROut3);
-
-            continue;
-        }
-
-        if (operation == "LOAD_F32") {
-            Emit(program, scOperation::OpLoadF32);
-
-            for (const std::string& arg: args) {
-                uint32_t val = 0.0F;
-
-                // TODO: Crash
-                if (!TryParseHex(arg, val))
-                    return scAssemblerState::InvalidArgument;
-
-                Emit(program, val);
-            }
-
-            continue;
-        }
-
-
-        // ==================
-        //  Stack operations
-        // ==================
-        if (operation == "PUSH_F32") {
-            Emit(program, scOperation::OpPushF32);
-
-            for (const std::string& arg: args) {
-                float val = 0.0F;
-
-                // TODO: Crash
-                if (!TryParseFloat(arg, val))
-                    return scAssemblerState::InvalidArgument;
-
-                Emit(program, val);
-            }
-
-            continue;
-        }
-
-        // =================
-        //  Math Operations
-        // =================
-        if (operation == "MUL_F32_F32") {
-            Emit(program, scOperation::OpMulF32F32);
-
-            continue;
-        }
-
-        if (operation == "DIV_F32_F32") {
-            Emit(program, scOperation::OpDivF32F32);
-
-            continue;
-        }
-
-        std::cout << "[scAssembler]: Unknown instruction (" << operation << ")" << std::endl;
-        return scAssemblerState::UnknownInstruction;
     }
 
     outProgram = scAssembledProgram(program, scModuleType::Fragment);
     return scAssemblerState::OK;
+}
+
+uint8_t scAssembler::DecodeRegister(const std::string& name) {
+    // TODO: Split the text off and just parse the number?
+    if (name == "%V0") {
+        return 2;
+    }
+
+    if (name == "%V1") {
+        return 3;
+    }
+
+    if (name == "%V2") {
+        return 4;
+    }
+
+    if (name == "%V3") {
+        return 5;
+    }
+
+    if (name == "%V4") {
+        return 6;
+    }
+
+    if (name == "%V5") {
+        return 7;
+    }
+
+    if (name == "%V6") {
+        return 8;
+    }
+
+    if (name == "%V7") {
+        return 9;
+    }
+
+    if (name == "%FB0") {
+        return 10;
+    }
+
+    if (name == "%FB1") {
+        return 11;
+    }
+
+    if (name == "%FB2") {
+        return 12;
+    }
+
+    if (name == "%FB3") {
+        return 13;
+    }
+
+    return -1;
+}
+
+scAssemblerState scAssembler::AssembleGroupZero(std::vector<uint8_t>& program,
+                                                const std::string& op,
+                                                const std::vector<std::string>& args) {
+    uint32_t encoded = 0x0000;
+
+    SetGroup(scInstructionGroup::GroupZero, encoded);
+
+    return scAssemblerState::NoInstructionFound;
+}
+
+scAssemblerState scAssembler::AssembleGroupOne(std::vector<uint8_t>& program,
+                                                const std::string& op,
+                                                const std::vector<std::string>& args) {
+    uint32_t encoded = 0x0000;
+
+    uint8_t aRegister = DecodeRegister(args[0]);
+    uint8_t bRegister = DecodeRegister(args[1]);
+
+    SetGroup(scInstructionGroup::GroupOne, encoded);
+
+    // TODO: Refactor this
+    if (op == "ADD_F32_F32") {
+        scGroupOneSubOperations subOp = scGroupOneSubOperations::SubOpAdd;
+        SetInstruction(scGroupOneOperations::OpALUF32F32, encoded);
+
+        for (int b = 0; b < 4; b++) {
+            SetBit(encoded, 12 + b, ((int)subOp) & (1 << b));
+        }
+
+        for (int b = 0; b < 8; b++) {
+            SetBit(encoded, 16 + b, aRegister & (1 << b));
+            SetBit(encoded, 24 + b, bRegister & (1 << b));
+        }
+
+        Emit(program, encoded);
+        return scAssemblerState::OK;
+    }
+
+    if (op == "SUB_F32_F32") {
+        scGroupOneSubOperations subOp = scGroupOneSubOperations::SubOpSub;
+        SetInstruction(scGroupOneOperations::OpALUF32F32, encoded);
+
+        for (int b = 0; b < 4; b++) {
+            SetBit(encoded, 12 + b, ((int)subOp) & (1 << b));
+        }
+
+        for (int b = 0; b < 8; b++) {
+            SetBit(encoded, 16 + b, aRegister & (1 << b));
+            SetBit(encoded, 24 + b, bRegister & (1 << b));
+        }
+
+        Emit(program, encoded);
+        return scAssemblerState::OK;
+    }
+
+    if (op == "MUL_F32_F32") {
+        scGroupOneSubOperations subOp = scGroupOneSubOperations::SubOpMul;
+        SetInstruction(scGroupOneOperations::OpALUF32F32, encoded);
+
+        for (int b = 0; b < 4; b++) {
+            SetBit(encoded, 12 + b, ((int)subOp) & (1 << b));
+        }
+
+        for (int b = 0; b < 8; b++) {
+            SetBit(encoded, 16 + b, aRegister & (1 << b));
+            SetBit(encoded, 24 + b, bRegister & (1 << b));
+        }
+
+        Emit(program, encoded);
+        return scAssemblerState::OK;
+    }
+
+    if (op == "DIV_F32_F32") {
+        scGroupOneSubOperations subOp = scGroupOneSubOperations::SubOpDiv;
+        SetInstruction(scGroupOneOperations::OpALUF32F32, encoded);
+
+        for (int b = 0; b < 4; b++) {
+            SetBit(encoded, 12 + b, ((int)subOp) & (1 << b));
+        }
+
+        for (int b = 0; b < 8; b++) {
+            SetBit(encoded, 16 + b, aRegister & (1 << b));
+            SetBit(encoded, 24 + b, bRegister & (1 << b));
+        }
+
+        Emit(program, encoded);
+        return scAssemblerState::OK;
+    }
+
+    return scAssemblerState::NoInstructionFound;
+}
+
+scAssemblerState scAssembler::AssembleGroupTwo(std::vector<uint8_t>& program,
+                                               const std::string& op,
+                                                const std::vector<std::string>& args) {
+    uint32_t encoded = 0x0000;
+
+    SetGroup(scInstructionGroup::GroupTwo, encoded);
+
+    uint8_t targetRegister = DecodeRegister(args[0]);
+
+    if (op == "SET_F32") {
+        SetInstruction(scGroupTwoOperations::OpSetF32, encoded);
+
+        for (int b = 0; b < 8; b++) {
+            SetBit(encoded, 12 + b, targetRegister & (1 << b));
+        }
+
+        Emit(program, encoded);
+
+        float arg = 0;
+
+        if (!TryParseFloat(args[1], arg))
+            return scAssemblerState::InvalidArgument;
+
+        Emit(program, arg);
+
+        return scAssemblerState::OK;
+    }
+
+    if (op == "LD_F32") {
+        SetInstruction(scGroupTwoOperations::OpLoadF32, encoded);
+
+        for (int b = 0; b < 8; b++) {
+            SetBit(encoded, 12 + b, targetRegister & (1 << b));
+        }
+
+        Emit(program, encoded);
+
+        uint32_t arg = 0;
+
+        if (!TryParseHex(args[1], arg))
+            return scAssemblerState::InvalidArgument;
+
+        Emit(program, arg);
+
+        return scAssemblerState::OK;
+    }
+
+    if (op == "LD_F32") {
+        SetInstruction(scGroupTwoOperations::OpLoadF32, encoded);
+
+        for (int b = 0; b < 8; b++) {
+            SetBit(encoded, 12 + b, targetRegister & (1 << b));
+        }
+
+        Emit(program, encoded);
+
+        uint32_t arg = 0;
+
+        if (!TryParseHex(args[1], arg))
+            return scAssemblerState::InvalidArgument;
+
+        Emit(program, arg);
+
+        return scAssemblerState::OK;
+    }
+
+    return scAssemblerState::NoInstructionFound;
 }
 
 bool scAssembler::TryParseFloat(const std::string& str, float& out) {

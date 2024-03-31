@@ -34,44 +34,48 @@
 
 #include <cstdint>
 
-enum class scOperation : uint16_t {
-    // =================
-    //  VM Manipulation
-    // =================
-    OpExitProgram  = 0x0000,
-
-    OpTXROut0      = 0x0050,
-    OpTXROut1      = 0x0051,
-    OpTXROut2      = 0x0052,
-    OpTXROut3      = 0x0053,
-
-    OpStoreF32     = 0x00A0,
-    OpStoreF64     = 0x00A1,
-    OpStoreI16     = 0x00A2,
-    OpStoreI32     = 0x00A3,
-
-    OpLoadF32      = 0x00C0,
-    OpLoadF64      = 0x00C1,
-    OpLoadI16      = 0x00C2,
-    OpLoadI32      = 0x00C3,
-
-    // ==================
-    //  Stack operations
-    // ==================
-    OpPushF32      = 0x0100,
-    OpPushF64      = 0x0101,
-    OpPushI16      = 0x0102,
-    OpPushI32      = 0x0103,
-
-    // =================
-    //  Math Operations
-    // =================
-    OpAddF32F32   = 0x0200,
-    OpSubF32F32   = 0x0201,
-    OpMulF32F32   = 0x0202,
-    OpDivF32F32   = 0x0203,
+enum class scInstructionGroup : uint8_t {
+    GroupZero      = 0x0,
+    GroupOne       = 0x1,
+    GroupTwo       = 0x2
 };
 
-extern const char* scGetOperationName(scOperation op);
+enum class scGroupZeroOperations : uint8_t {
+    // =======================
+    //  Group Zero Operations
+    // =======================
+    OpExitProgram  = 0x00,
+};
+
+enum class scGroupOneOperations : uint8_t {
+    // ======================
+    //  Group One Operations
+    // ======================
+    OpALUF32F32 = 0x00
+};
+
+enum class scGroupOneSubOperations : uint8_t {
+    // =========================
+    //  Group One SubOperations
+    // =========================
+    SubOpAdd = 0x00,
+    SubOpSub = 0x01,
+    SubOpMul = 0x02,
+    SubOpDiv = 0x03,
+    SubOpMod = 0x04,
+    SubOpPow = 0x05,
+};
+
+enum class scGroupTwoOperations : uint8_t {
+    // ======================
+    //  Group Two Operations
+    // ======================
+    OpSetF32       = 0x00,
+    OpLoadF32      = 0x01,
+
+    OpABSF32       = 0x02
+};
+
+//extern const char* scGetOperationName(scOperation op);
 
 #endif //SCHISM_SC_OPERATIONS_HPP

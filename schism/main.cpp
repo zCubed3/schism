@@ -36,6 +36,7 @@
 #include <optional>
 #include <fstream>
 #include <algorithm>
+#include <cmath>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>
@@ -69,6 +70,66 @@ public:
     scValueType type;
 };
 
+// These are all encoded as scValue_u's
+enum class scRegister : uint8_t {
+    SP,
+    IP,
+
+    // All registers that can be indexed start after SP+IP, aka (2)
+
+    V0,
+    V1,
+    V2,
+    V3,
+    V4,
+    V5,
+    V6,
+    V7,
+
+    FB0,
+    FB1,
+    FB2,
+    FB3,
+
+    REGISTER_COUNT
+};
+
+const char* GetRegisterName(scRegister regIndex) {
+    switch (regIndex) {
+        case scRegister::IP:
+            return "IP";
+
+        case scRegister::SP:
+            return "SP";
+
+        case scRegister::V0:
+            return "V0";
+
+        case scRegister::V1:
+            return "V1";
+
+        case scRegister::V2:
+            return "V2";
+
+        case scRegister::V3:
+            return "V3";
+
+        case scRegister::V4:
+            return "V4";
+
+        case scRegister::V5:
+            return "V5";
+
+        case scRegister::V6:
+            return "V6";
+
+        case scRegister::V7:
+            return "V7";
+    }
+
+    return nullptr;
+}
+
 // Represents the virtual machine that handles state for a provided scModule
 template<size_t MEM_SIZE>
 class scVM {
@@ -76,41 +137,24 @@ protected:
     std::array<scVariable, 256> _stack {};
     std::array<uint8_t, MEM_SIZE> _memory {};
 
-    uint32_t _regIP = 0;
-    uint32_t _regSP = 0;
-
-    // VERTEX PROGRAM
-    //  - Vertex programs output the clipping XYZW into these registers
-    //  - Fragment programs output the framebuffer contents into these registers
-    float _regOUT0 = 0;
-    float _regOUT1 = 0;
-    float _regOUT2 = 0;
-    float _regOUT3 = 0;
+    std::array<scValue_u, static_cast<int>(scRegister::REGISTER_COUNT)> registers;
 
     // FRAGMENT PROGRAM
 
 public:
-    // =========
-    //  Getters
-    // =========
-    [[nodiscard]]
-    float GetRegOUT0() const {
-        return _regOUT0;
+    // =======================
+    //  Register Manipulation
+    // =======================
+    void MoveInstructionPointer(int offset) {
+        registers[static_cast<int>(scRegister::IP)].u32 += offset;
     }
 
-    [[nodiscard]]
-    float GetRegOUT1() const {
-        return _regOUT1;
+    scValue_u GetRegister(scRegister regIndex) const {
+        return registers[static_cast<int>(regIndex)];
     }
 
-    [[nodiscard]]
-    float GetRegOUT2() const {
-        return _regOUT2;
-    }
-
-    [[nodiscard]]
-    float GetRegOUT3() const {
-        return _regOUT3;
+    void SetRegister(scRegister regIndex, const scValue_u& value) {
+        registers[static_cast<int>(regIndex)] = value;
     }
 
     // =====================
@@ -168,7 +212,7 @@ public:
     void PrintStack() {
         std::cout << "-======= SCHISM STACK =======-\n";
 
-        for (int s = _regSP - 1; s >= 0; s--) {
+        for (int s = GetRegister(scRegister::SP).u32 - 1; s >= 0; s--) {
             scVariable variable = _stack[s];
 
             std::cout << s << " : ";
@@ -181,12 +225,14 @@ public:
     void PrintRegisters() {
         std::cout << "-======= SCHISM REGISTERS =======-\n";
 
-        std::cout << "IP = " << _regIP << std::endl;
-        std::cout << "SP = " << _regSP << std::endl;
-        std::cout << "OUT0 = " << _regOUT0 << std::endl;
-        std::cout << "OUT1 = " << _regOUT1 << std::endl;
-        std::cout << "OUT2 = " << _regOUT2 << std::endl;
-        std::cout << "OUT3 = " << _regOUT3 << std::endl;
+        std::cout << std::hex;
+
+        for (int r = 0; r < (int)scRegister::REGISTER_COUNT; r++) {
+            scRegister reg = (scRegister)r;
+            std::cout << GetRegisterName(reg) << GetRegister(reg).u32 << std::endl;
+        }
+
+        std::cout << std::dec;
 
         std::cout << "-================================-\n";
     }
@@ -195,146 +241,122 @@ public:
     //  Stack Manipulation
     // ====================
     void PushValue(scValue_u value, scValueType type) {
-        _stack[_regSP] = { value, type };
-        _regSP++;
+        scValue_u sp = GetRegister(scRegister::SP);
+
+        _stack[sp.u32++] = { value, type };
+
+        SetRegister(scRegister::SP, sp);
 
         // TODO: Detect a stack overflow
     }
 
     bool PopValue(scVariable& operand) {
+        scValue_u sp = GetRegister(scRegister::SP);
+
         // TODO: Detect stack underflow
-        if (_regSP - 1 == 0xFF)
+        if (sp.u32 - 1 == 0xFF)
             return false;
 
-        operand = _stack[--_regSP];
+        operand = _stack[--sp.u32];
+        SetRegister(scRegister::SP, sp);
+
         return true;
     }
 
     // ===================
     //  Program Execution
     // ===================
-    bool ExecuteOperation(const scModule& module, scOperation op) {
+    bool ExecuteOperation(const scModule& module, uint32_t encoded) {
         //std::cout << "EXECUTING: " << scGetOperationName(op) << "\n";
 
-        switch (op) {
-            // =================
-            //  VM Manipulation
-            // =================
-            case scOperation::OpExitProgram: {
-                return false;
-            }
+        // Begin to decode the instruction
+        scInstructionGroup group = (scInstructionGroup)(encoded & 0xF);
 
-            case scOperation::OpTXROut0:
-            case scOperation::OpTXROut1:
-            case scOperation::OpTXROut2:
-            case scOperation::OpTXROut3: {
-                scVariable variable;
+        switch (group) {
+            case scInstructionGroup::GroupOne: {
+                scGroupOneOperations op = (scGroupOneOperations)((encoded >> 4) & 0xFF);
+                scGroupOneSubOperations subOp = (scGroupOneSubOperations)((encoded >> 12) & 0xF);
 
-                if (!PopValue(variable))
-                    return false;
+                scRegister aRegister = (scRegister)((encoded >> 16) & 0xFF);
+                scRegister bRegister = (scRegister)((encoded >> 24) & 0xFF);
 
                 switch (op) {
-                    case scOperation::OpTXROut0:
-                        _regOUT0 = variable.value.f32;
-                        break;
+                    case scGroupOneOperations::OpALUF32F32: {
+                        scValue_u aValue = GetRegister(aRegister);
+                        scValue_u bValue = GetRegister(bRegister);
 
-                    case scOperation::OpTXROut1:
-                        _regOUT1 = variable.value.f32;
-                        break;
+                        switch (subOp) {
+                            case scGroupOneSubOperations::SubOpAdd: {
+                                aValue.f32 = aValue.f32 + bValue.f32;
+                                break;
+                            }
 
-                    case scOperation::OpTXROut2:
-                        _regOUT2 = variable.value.f32;
-                        break;
+                            case scGroupOneSubOperations::SubOpSub: {
+                                aValue.f32 = aValue.f32 - bValue.f32;
+                                break;
+                            }
 
-                    case scOperation::OpTXROut3:
-                        _regOUT3 = variable.value.f32;
+                            case scGroupOneSubOperations::SubOpMul: {
+                                aValue.f32 = aValue.f32 * bValue.f32;
+                                break;
+                            }
+
+                            case scGroupOneSubOperations::SubOpDiv: {
+                                aValue.f32 = aValue.f32 / bValue.f32;
+                                break;
+                            }
+
+                            case scGroupOneSubOperations::SubOpMod: {
+                                aValue.f32 = std::fmod(aValue.f32, bValue.f32);
+                                break;
+                            }
+
+                            case scGroupOneSubOperations::SubOpPow: {
+                                aValue.f32 = powf(aValue.f32, bValue.f32);
+                                break;
+                            }
+                        }
+
+                        SetRegister(aRegister, aValue);
                         break;
+                    }
                 }
 
                 break;
             }
 
-            case scOperation::OpLoadF32: {
-                scValue_u loadPtr, value;
+            case scInstructionGroup::GroupTwo: {
+                scGroupTwoOperations op = (scGroupTwoOperations)((encoded >> 4) & 0xFF);
+                scRegister targetRegister = (scRegister)((encoded >> 12) & 0xFF);
 
-                // Where?
-                if (module.ReadValue<uint32_t>(_regIP, loadPtr.u32) != scModuleState::OK)
-                    return false;
+                // TODO: Break this into functions
+                switch (op) {
+                    case scGroupTwoOperations::OpSetF32: {
+                        scValue_u value;
+                        module.ReadValue(GetRegister(scRegister::IP).u32, value.f32);
 
-                _regIP += sizeof(uint32_t);
+                        MoveInstructionPointer(sizeof(float));
 
-                if (!ReadValue(loadPtr.u32, value.f32))
-                    return false;
+                        SetRegister(targetRegister, value);
+                        break;
+                    }
 
-                PushValue(value, scValueType::F32);
+                    case scGroupTwoOperations::OpLoadF32: {
+                        uint32_t ptr;
+                        module.ReadValue(GetRegister(scRegister::IP).u32, ptr);
 
-                break;
-            }
+                        MoveInstructionPointer(sizeof(uint32_t));
 
-            // =================
-            //  Push operations
-            // =================
-            case scOperation::OpPushF32: {
-                scValue_u value;
+                        scValue_u value;
 
-                if (module.ReadValue<float>(_regIP, value.f32) != scModuleState::OK)
-                    return false;
+                        if (!ReadValue(ptr, value.f32)) {
+                            return false;
+                        }
 
-                _regIP += 4;
-
-                PushValue(value, scValueType::F32);
-
-                break;
-            }
-
-            case scOperation::OpPushI16: {
-                scValue_u value;
-
-                if (module.ReadValue<float>(_regIP, value.f32) != scModuleState::OK)
-                    return false;
-
-                _regIP += 2;
-
-                PushValue(value, scValueType::I16);
-
-                break;
-            }
-
-            // =================
-            //  Math Operations
-            // =================
-            case scOperation::OpMulF32F32: {
-                scVariable inLhs, inRhs;
-
-                if (!PopValue(inLhs))
-                    return false;
-
-                if (!PopValue(inRhs))
-                    return false;
-
-                // TODO: Type check?
-
-                scValue_u value;
-                value.f32 = inLhs.value.f32 * inRhs.value.f32;
-
-                PushValue(value, scValueType::F32);
-
-                break;
-            }
-
-            case scOperation::OpDivF32F32: {
-                scVariable inLhs, inRhs;
-
-                if (!PopValue(inLhs))
-                    return false;
-
-                if (!PopValue(inRhs))
-                    return false;
-
-                scValue_u value;
-                value.f32 = inLhs.value.f32 / inRhs.value.f32;
-
-                PushValue(value, scValueType::F32);
+                        SetRegister(targetRegister, value);
+                        break;
+                    }
+                }
 
                 break;
             }
@@ -346,27 +368,23 @@ public:
     }
 
     void ResetRegisters() {
-        _regIP = 0;
-        _regSP = 0;
-        _regOUT0 = 0;
-        _regOUT1 = 0;
-        _regOUT2 = 0;
-        _regOUT3 = 0;
+        for (int r = 0; r < (int)scRegister::REGISTER_COUNT; r++) {
+            registers[r].u32 = 0;
+        }
     }
 
     void ExecuteModule(const scModule& module) {
         bool alive = true;
 
         while (alive) {
-            scOperation op;
-
             // TODO: Report the VM CRASH!
-            if (module.ReadValue<scOperation>(_regIP, op) != scModuleState::OK)
+            uint32_t encoded;
+            if (module.ReadValue<uint32_t>(GetRegister(scRegister::IP).u32, encoded) != scModuleState::OK)
                 return;
 
-            _regIP += sizeof(scOperation);
+            MoveInstructionPointer(sizeof(uint32_t));
 
-            alive = ExecuteOperation(module, op);
+            alive = ExecuteOperation(module, encoded);
         }
     }
 };
@@ -410,9 +428,9 @@ int main() {
             vm.ResetRegisters();
             vm.ExecuteModule(module);
 
-            bytes[stride] = vm.GetRegOUT0();
-            bytes[stride + 1] = vm.GetRegOUT1();
-            bytes[stride + 2] = vm.GetRegOUT2();
+            bytes[stride] = vm.GetRegister(scRegister::FB0).f32;
+            bytes[stride + 1] = vm.GetRegister(scRegister::FB1).f32;
+            bytes[stride + 2] = vm.GetRegister(scRegister::FB2).f32;
         }
     }
 

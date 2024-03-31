@@ -35,14 +35,18 @@
 #include <string>
 #include <vector>
 #include <optional>
+#include <bitset>
 
+#include <schism/sc_operations.hpp>
 #include <schism/sc_module.hpp>
 
 enum class scAssemblerState {
     OK,
 
     UnknownInstruction,
-    InvalidArgument
+    InvalidArgument,
+
+    NoInstructionFound,
 };
 
 class scAssembledProgram {
@@ -61,12 +65,52 @@ public:
     template<class T>
     void Emit(std::vector<uint8_t>& program, T value) {
         uint8_t* valPtr = (uint8_t*)&value;
+
         for (int x = 0; x < sizeof(T); x++) {
             program.emplace_back(valPtr[x]);
         }
     }
 
+    void EmitBitset(std::vector<uint8_t>& program, const std::bitset<32>& bits) {
+        Emit(program, bits.to_ulong());
+    }
+
+    void SetBit(uint32_t& encoded, int bit, bool value) {
+        encoded = (encoded & ~((int)1 << bit)) | (value << bit);
+    }
+
+    void SetGroup(scInstructionGroup group, uint32_t& encoded) {
+        int rawGroup = (int)group;
+
+        for (int b = 0; b < 4; b++) {
+            SetBit(encoded, b, rawGroup & (1 << b));
+        }
+    }
+
+    template<typename T>
+    void SetInstruction(T operation, uint32_t& encoded) {
+        int raw = (int)operation;
+
+        for (int b = 0; b < 8; b++) {
+            SetBit(encoded, 4 + b, raw & (1 << b));
+        }
+    }
+
     scAssemblerState CompileSourceFile(const std::string& path, scAssembledProgram& outProgram);
+
+    uint8_t DecodeRegister(const std::string& name);
+
+    scAssemblerState AssembleGroupZero(std::vector<uint8_t>& program,
+                                       const std::string& op,
+                                       const std::vector<std::string>& args);
+
+    scAssemblerState AssembleGroupOne(std::vector<uint8_t>& program,
+                                      const std::string& op,
+                                      const std::vector<std::string>& args);
+
+    scAssemblerState AssembleGroupTwo(std::vector<uint8_t>& program,
+                                      const std::string& op,
+                                      const std::vector<std::string>& args);
 
 public:
     bool TryParseFloat(const std::string& str, float& out);
