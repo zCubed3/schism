@@ -37,6 +37,7 @@
 #include <fstream>
 #include <algorithm>
 #include <cmath>
+#include <chrono>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>
@@ -434,6 +435,10 @@ int main() {
     vm.Poke<float>(sizeof(int) * 2, WIDTH - 1);
     vm.Poke<float>(sizeof(int) * 3, HEIGHT - 1);
 
+    std::cout << "[SCHISM] Executing test.scsm | " << WIDTH << "x" << HEIGHT << std::endl;
+
+    auto start = std::chrono::high_resolution_clock::now();
+
     // For each pixel, we will execute the virtual machine, starting anew each time
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
@@ -450,6 +455,12 @@ int main() {
             bytes[stride + 2] = vm.GetRegister(scRegister::FB2).f32;
         }
     }
+
+    auto end = std::chrono::high_resolution_clock::now();
+    auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    auto micros = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+    std::cout << "[SCHISM] Test.scsm took " << millis.count() << "ms (" << micros.count() << "us) to execute" << std::endl;
 
     stbi_write_jpg("./test.jpg", WIDTH, HEIGHT, 3, bytes.data(), 100);
 
