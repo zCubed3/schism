@@ -1,27 +1,52 @@
 ;
-; SCSA - 0.0.2 Test Program
+; Schism Test Program
 ;
 
-;
-; Load the FB X and WIDTH values we store in memory
-;   - This provides a gradient along the X axis
-;
-ld_f32 %FB0 00
-ld_f32 %V0 08
+; Load vector 0
+ld_f32 %S0 00
+ld_f32 %S1 04
+set_f32 %S2 0.0
+set_f32 %S3 1.0
 
-alu_f32_f32 div %FB0 %V0
+; Load vector 1
+ld_f32 %S4 08
+ld_f32 %S5 0C
+set_f32 %S6 1.0
+set_f32 %S7 1.0
 
-set_f32 %V0 255.0
-alu_f32_f32 mul %FB0 %V0
+; Divide them using a 4:4 SIMD
+alu_f32_f32 div %V0 %V1
 
-;
-; Load the FB Y and HEIGHT values we store in memory
-;   - This provides a gradient along the Y axis
-;
-ld_f32 %FB1 04
-ld_f32 %V0 0C
+; Load vector 1 (to center our UV)
+set_f32 %S4 0.5
+set_f32 %S5 0.5
 
-alu_f32_f32 div %FB1 %V0
+alu_f32_f32 sub %V0 %V1
 
-set_f32 %V0 255.0
-alu_f32_f32 mul %FB1 %V0
+; Load vector 1 (to center our UV)
+set_f32 %S4 2.0
+set_f32 %S5 2.0
+
+alu_f32_f32 mul %V0 %V1
+
+; ABS our U and V
+abs_f32 %S0
+abs_f32 %S1
+
+; Load vector 1 (again)
+set_f32 %S4 255.0
+set_f32 %S5 255.0
+set_f32 %S6 255.0
+set_f32 %S7 255.0
+
+; Multiply them using a 4:4 SIMD
+alu_f32_f32 mul %V0 %V1
+
+; Output to the framebuffer
+mov %FB0 %S0
+mov %FB1 %S1
+mov %FB2 %S2
+mov %FB3 %S3
+
+; Terminate
+exit

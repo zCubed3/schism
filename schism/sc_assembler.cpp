@@ -63,7 +63,7 @@ scAssemblerState scAssembler::CompileSourceFile(const std::string& path, scAssem
     std::vector<uint8_t> program;
 
     while (std::getline(file, line)) {
-        // TODO: Use semicolons
+        // TODO: Trim the line of whitespace
 
         for (char& ch: line)
             ch = std::toupper(ch);
@@ -112,14 +112,16 @@ scAssemblerState scAssembler::CompileSourceFile(const std::string& path, scAssem
             return state;
         }
 
-        state = AssembleGroupOne(program, operation, args);
+        if (state != scAssemblerState::OK)
+            state = AssembleGroupOne(program, operation, args);
 
         if (state == scAssemblerState::UnknownInstruction) {
             std::cout << "[scAssembler]: Unknown group one instruction (" << operation << ")" << std::endl;
             return state;
         }
 
-        state = AssembleGroupTwo(program, operation, args);
+        if (state != scAssemblerState::OK)
+            state = AssembleGroupTwo(program, operation, args);
 
         if (state == scAssemblerState::UnknownInstruction) {
             std::cout << "[scAssembler]: Unknown group two instruction (" << operation << ")" << std::endl;
@@ -132,53 +134,58 @@ scAssemblerState scAssembler::CompileSourceFile(const std::string& path, scAssem
 }
 
 uint8_t scAssembler::DecodeRegister(const std::string& name) {
-    // TODO: Split the text off and just parse the number?
-    if (name == "%V0") {
-        return 2;
+    // First char must be %
+    if (name.empty())
+        return -1;
+
+    if (name[0] != '%')
+        return -1;
+
+    // Determine the group first by removing anything not a number
+    size_t alphaEnd = 0;
+
+    // TODO: this is hard to read
+    for (; alphaEnd < name.size(); alphaEnd++)
+        if (std::isdigit(name[alphaEnd]))
+            break;
+
+    std::string ident = name.substr(1, alphaEnd - 1);
+
+    for (char& c : ident)
+        c = std::toupper(c);
+
+    std::string numbers = name.substr(alphaEnd);
+    uint32_t index;
+
+    if (!TryParseU32(numbers, index))
+        return -1;
+
+    if (ident == "FB") {
+        if (index >= 4)
+            return -1;
+
+        return ((uint8_t)scRegister::FB0) + index;
     }
 
-    if (name == "%V1") {
-        return 3;
+    if (ident == "S") {
+        if (index >= 32)
+            return -1;
+
+        return ((uint8_t)scRegister::S0) + index;
     }
 
-    if (name == "%V2") {
-        return 4;
+    if (ident == "V") {
+        if (index >= 8)
+            return -1;
+
+        return ((uint8_t)scRegister::V0) + index;
     }
 
-    if (name == "%V3") {
-        return 5;
-    }
+    if (ident == "M") {
+        if (index >= 2)
+            return -1;
 
-    if (name == "%V4") {
-        return 6;
-    }
-
-    if (name == "%V5") {
-        return 7;
-    }
-
-    if (name == "%V6") {
-        return 8;
-    }
-
-    if (name == "%V7") {
-        return 9;
-    }
-
-    if (name == "%FB0") {
-        return 10;
-    }
-
-    if (name == "%FB1") {
-        return 11;
-    }
-
-    if (name == "%FB2") {
-        return 12;
-    }
-
-    if (name == "%FB3") {
-        return 13;
+        return ((uint8_t)scRegister::M0) + index;
     }
 
     return -1;
@@ -191,6 +198,13 @@ scAssemblerState scAssembler::AssembleGroupZero(std::vector<uint8_t>& program,
 
     SetGroup(scInstructionGroup::GroupZero, encoded);
 
+    if (op == "EXIT") {
+        SetInstruction(scGroupZeroOperations::OpExitProgram, encoded);
+
+        Emit(program, encoded);
+        return scAssemblerState::OK;
+    }
+
     return scAssemblerState::NoInstructionFound;
 }
 
@@ -200,6 +214,25 @@ scAssemblerState scAssembler::AssembleGroupOne(std::vector<uint8_t>& program,
     uint32_t encoded = 0x0000;
 
     SetGroup(scInstructionGroup::GroupOne, encoded);
+
+    if (op == "MOV") {
+        scGroupOneSubOperations subOp;
+        SetInstruction(scGroupOneOperations::OpMOV, encoded);
+
+        uint8_t aRegister = DecodeRegister(args[0]);
+        uint8_t bRegister = DecodeRegister(args[1]);
+
+        if (aRegister == -1 || bRegister == -1)
+            return scAssemblerState::InvalidArgument; // TODO: Invalid register
+
+        for (int b = 0; b < 8; b++) {
+            SetBit(encoded, 16 + b, aRegister & (1 << b));
+            SetBit(encoded, 24 + b, bRegister & (1 << b));
+        }
+
+        Emit(program, encoded);
+        return scAssemblerState::OK;
+    }
 
     // TODO: Refactor this
     if (op == "ALU_F32_F32") {
@@ -226,6 +259,9 @@ scAssemblerState scAssembler::AssembleGroupOne(std::vector<uint8_t>& program,
         uint8_t aRegister = DecodeRegister(args[1]);
         uint8_t bRegister = DecodeRegister(args[2]);
 
+        if (aRegister == -1 || bRegister == -1)
+            return scAssemblerState::InvalidArgument; // TODO: Invalid register
+
         for (int b = 0; b < 4; b++) {
             SetBit(encoded, 12 + b, ((int)subOp) & (1 << b));
         }
@@ -251,20 +287,19 @@ scAssemblerState scAssembler::AssembleGroupTwo(std::vector<uint8_t>& program,
 
     uint8_t targetRegister = DecodeRegister(args[0]);
 
+    for (int b = 0; b < 8; b++) {
+        SetBit(encoded, 12 + b, targetRegister & (1 << b));
+    }
+
     if (op == "SET_F32") {
         SetInstruction(scGroupTwoOperations::OpSetF32, encoded);
-
-        for (int b = 0; b < 8; b++) {
-            SetBit(encoded, 12 + b, targetRegister & (1 << b));
-        }
-
-        Emit(program, encoded);
 
         float arg = 0;
 
         if (!TryParseFloat(args[1], arg))
             return scAssemblerState::InvalidArgument;
 
+        Emit(program, encoded);
         Emit(program, arg);
 
         return scAssemblerState::OK;
@@ -289,21 +324,10 @@ scAssemblerState scAssembler::AssembleGroupTwo(std::vector<uint8_t>& program,
         return scAssemblerState::OK;
     }
 
-    if (op == "LD_F32") {
-        SetInstruction(scGroupTwoOperations::OpLoadF32, encoded);
-
-        for (int b = 0; b < 8; b++) {
-            SetBit(encoded, 12 + b, targetRegister & (1 << b));
-        }
+    if (op == "ABS_F32") {
+        SetInstruction(scGroupTwoOperations::OpABSF32, encoded);
 
         Emit(program, encoded);
-
-        uint32_t arg = 0;
-
-        if (!TryParseHex(args[1], arg))
-            return scAssemblerState::InvalidArgument;
-
-        Emit(program, arg);
 
         return scAssemblerState::OK;
     }
@@ -319,8 +343,12 @@ bool scAssembler::TryParseFloat(const std::string& str, float& out) {
 }
 
 bool scAssembler::TryParseHex(const std::string& str, uint32_t& out) {
+    return TryParseU32(str, out, 16);
+}
+
+bool scAssembler::TryParseU32(const std::string& str, uint32_t& out, int radix) {
     char* end;
-    out = std::strtoul(str.c_str(), &end, 16);
+    out = std::strtoul(str.c_str(), &end, radix);
 
     return end != str.c_str();
 }

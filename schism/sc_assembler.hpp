@@ -113,9 +113,11 @@ public:
                                       const std::vector<std::string>& args);
 
 public:
-    bool TryParseFloat(const std::string& str, float& out);
+    static bool TryParseFloat(const std::string& str, float& out);
 
-    bool TryParseHex(const std::string& str, uint32_t& out);
+    static bool TryParseHex(const std::string& str, uint32_t& out);
+
+    static bool TryParseU32(const std::string& str, uint32_t& out, int radix = 10);
 };
 
 #endif //SCHISM_SC_ASSEMBLER_HPP

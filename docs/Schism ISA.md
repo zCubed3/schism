@@ -1,5 +1,5 @@
 
-## Registers
+## I/O Registers
 
 All schism registers are the size of a DWORD (32-bit)
 
@@ -8,19 +8,13 @@ All schism registers are the size of a DWORD (32-bit)
 |    SP    |    Stack Pointer    |
 |    IP    | Instruction Pointer |
 |          |                     |
-|    V0    |     Variable 0      |
-|    V1    |     Variable 1      |
-|    V2    |     Variable 2      |
-|    V3    |     Variable 3      |
-|    V4    |     Variable 4      |
-|    V5    |     Variable 5      |
-|    V6    |     Variable 6      |
-|    V7    |     Variable 7      |
-|          |                     |
 |   FB0    |  Framebuffer R (0)  |
 |   FB1    |  Framebuffer G (1)  |
 |   FB2    |  Framebuffer B (2)  |
 |   FB3    |  Framebuffer A (3)  |
+
+### [[Schism Registers]] - Refer to this for user registers
+
 
 ## Instructions
 
@@ -101,6 +95,7 @@ D = RESERVED (12 Bits)
 | :---------: | :--------------------: | :----------: |
 | SET_F32_RX  | `set_f32 %REG IMM_VAL` | `0b00000000` |
 | LOAD_F32_RX | `ld_f32 %REG IMM_PTR`  | `0b00000001` |
+|   ABS_F32   |     `abs_f32 %REG`     | `0b00000010` |
 
 
 

@@ -34,6 +34,74 @@
 
 #include <cstdint>
 
+// enum scRegister
+//   - Represents a register within the Schism VM runtime
+//   - The lower half of registers are actually all virtual and do not physically exist
+enum class scRegister : uint8_t {
+    // ==================
+    //  System Registers
+    // ==================
+    SP,
+    IP,
+
+    FB0,
+    FB1,
+    FB2,
+    FB3,
+
+    // ================
+    //  User Registers
+    // ================
+
+    // M0 - Matrix 0
+    //  V0
+    S0, S1, S2, S3,
+
+    //  V1
+    S4, S5, S6, S7,
+
+    //  V2
+    S8, S9, S10, S11,
+
+    //  V3
+    S12, S13, S14, S15,
+
+    // M1 - Matrix 1
+    //  V4
+    S16, S17, S18, S19,
+
+    //  V5
+    S20, S21, S22, S23,
+
+    //  V6
+    S24, S25, S26, S27,
+
+    //  V7
+    S28, S29, S30, S31,
+
+    // =======================
+    //  End of real registers
+    // =======================
+    REGISTER_COUNT,
+
+    // ===================
+    //  Virtual Registers
+    // ===================
+    V0 = 0xF0,
+    V1 = 0xF1,
+    V2 = 0xF2,
+    V3 = 0xF3,
+    V4 = 0xF4,
+    V5 = 0xF5,
+    V6 = 0xF6,
+    V7 = 0xF7,
+
+    M0 = 0xF8,
+    M1 = 0xF9,
+
+    UNKNOWN = 0xFF
+};
+
 enum class scInstructionGroup : uint8_t {
     GroupZero      = 0x0,
     GroupOne       = 0x1,
@@ -51,7 +119,8 @@ enum class scGroupOneOperations : uint8_t {
     // ======================
     //  Group One Operations
     // ======================
-    OpALUF32F32 = 0x00
+    OpMOV       = 0x00,
+    OpALUF32F32 = 0x01
 };
 
 enum class scGroupOneSubOperations : uint8_t {
@@ -72,7 +141,6 @@ enum class scGroupTwoOperations : uint8_t {
     // ======================
     OpSetF32       = 0x00,
     OpLoadF32      = 0x01,
-
     OpABSF32       = 0x02
 };
 

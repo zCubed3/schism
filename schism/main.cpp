@@ -70,30 +70,6 @@ public:
     scValueType type;
 };
 
-// These are all encoded as scValue_u's
-enum class scRegister : uint8_t {
-    SP,
-    IP,
-
-    // All registers that can be indexed start after SP+IP, aka (2)
-
-    V0,
-    V1,
-    V2,
-    V3,
-    V4,
-    V5,
-    V6,
-    V7,
-
-    FB0,
-    FB1,
-    FB2,
-    FB3,
-
-    REGISTER_COUNT
-};
-
 const char* GetRegisterName(scRegister regIndex) {
     switch (regIndex) {
         case scRegister::IP:
@@ -273,6 +249,14 @@ public:
         scInstructionGroup group = (scInstructionGroup)(encoded & 0xF);
 
         switch (group) {
+            case scInstructionGroup::GroupZero: {
+                scGroupZeroOperations op = (scGroupZeroOperations)((encoded >> 4) & 0xFF);
+                switch (op) {
+                    case scGroupZeroOperations::OpExitProgram:
+                        return false;
+                }
+            }
+
             case scInstructionGroup::GroupOne: {
                 scGroupOneOperations op = (scGroupOneOperations)((encoded >> 4) & 0xFF);
                 scGroupOneSubOperations subOp = (scGroupOneSubOperations)((encoded >> 12) & 0xF);
@@ -281,43 +265,68 @@ public:
                 scRegister bRegister = (scRegister)((encoded >> 24) & 0xFF);
 
                 switch (op) {
+                    case scGroupOneOperations::OpMOV: {
+                        SetRegister(aRegister, GetRegister(bRegister));
+                        break;
+                    }
+
                     case scGroupOneOperations::OpALUF32F32: {
-                        scValue_u aValue = GetRegister(aRegister);
-                        scValue_u bValue = GetRegister(bRegister);
+                        int simd = 1;
 
-                        switch (subOp) {
-                            case scGroupOneSubOperations::SubOpAdd: {
-                                aValue.f32 = aValue.f32 + bValue.f32;
-                                break;
-                            }
-
-                            case scGroupOneSubOperations::SubOpSub: {
-                                aValue.f32 = aValue.f32 - bValue.f32;
-                                break;
-                            }
-
-                            case scGroupOneSubOperations::SubOpMul: {
-                                aValue.f32 = aValue.f32 * bValue.f32;
-                                break;
-                            }
-
-                            case scGroupOneSubOperations::SubOpDiv: {
-                                aValue.f32 = aValue.f32 / bValue.f32;
-                                break;
-                            }
-
-                            case scGroupOneSubOperations::SubOpMod: {
-                                aValue.f32 = std::fmod(aValue.f32, bValue.f32);
-                                break;
-                            }
-
-                            case scGroupOneSubOperations::SubOpPow: {
-                                aValue.f32 = powf(aValue.f32, bValue.f32);
-                                break;
-                            }
+                        // TODO: Add a helper rather than this bs
+                        if (aRegister == scRegister::V0) {
+                            simd = 4;
+                            aRegister = scRegister::S0;
                         }
 
-                        SetRegister(aRegister, aValue);
+                        if (bRegister == scRegister::V1) {
+                            simd = 4;
+                            bRegister = scRegister::S4;
+                        }
+
+
+                        for (int d = 0; d < simd; d++) {
+                            scValue_u aValue = GetRegister((scRegister)((int)aRegister + d));
+                            scValue_u bValue = GetRegister((scRegister)((int)bRegister + d));
+
+                            //std::cout << "LHS | " << (int)aRegister + d << " | " << aValue.f32 << std::endl;
+                            //std::cout << "RHS | " << (int)bRegister + d << " | " << bValue.f32 << std::endl;
+
+                            switch (subOp) {
+                                case scGroupOneSubOperations::SubOpAdd: {
+                                    aValue.f32 = aValue.f32 + bValue.f32;
+                                    break;
+                                }
+
+                                case scGroupOneSubOperations::SubOpSub: {
+                                    aValue.f32 = aValue.f32 - bValue.f32;
+                                    break;
+                                }
+
+                                case scGroupOneSubOperations::SubOpMul: {
+                                    aValue.f32 = aValue.f32 * bValue.f32;
+                                    break;
+                                }
+
+                                case scGroupOneSubOperations::SubOpDiv: {
+                                    aValue.f32 = aValue.f32 / bValue.f32;
+                                    break;
+                                }
+
+                                case scGroupOneSubOperations::SubOpMod: {
+                                    aValue.f32 = std::fmod(aValue.f32, bValue.f32);
+                                    break;
+                                }
+
+                                case scGroupOneSubOperations::SubOpPow: {
+                                    aValue.f32 = powf(aValue.f32, bValue.f32);
+                                    break;
+                                }
+                            }
+
+                            SetRegister((scRegister)((int)aRegister + d), aValue);
+                        }
+
                         break;
                     }
                 }
@@ -355,6 +364,14 @@ public:
 
                         SetRegister(targetRegister, value);
                         break;
+                    }
+
+                    case scGroupTwoOperations::OpABSF32: {
+                        scValue_u value = GetRegister(targetRegister);
+
+                        value.f32 = fabs(value.f32);
+
+                        SetRegister(targetRegister, value);
                     }
                 }
 
