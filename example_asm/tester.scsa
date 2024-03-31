@@ -1,0 +1,27 @@
+;
+; SCSA - 0.0.2 Test Program
+;
+
+;
+; Load the FB X and WIDTH values we store in memory
+;   - This provides a gradient along the X axis
+;
+ld_f32 %FB0 00
+ld_f32 %V0 08
+
+alu_f32_f32 div %FB0 %V0
+
+set_f32 %V0 255.0
+alu_f32_f32 mul %FB0 %V0
+
+;
+; Load the FB Y and HEIGHT values we store in memory
+;   - This provides a gradient along the Y axis
+;
+ld_f32 %FB1 04
+ld_f32 %V0 0C
+
+alu_f32_f32 div %FB1 %V0
+
+set_f32 %V0 255.0
+alu_f32_f32 mul %FB1 %V0

@@ -393,7 +393,7 @@ int main() {
     scAssembler assembler;
 
     scAssembledProgram program;
-    scAssemblerState state = assembler.CompileSourceFile("test.scsa", program);
+    scAssemblerState state = assembler.CompileSourceFile("./asm/tester.scsa", program);
 
     if (state != scAssemblerState::OK) {
         return 1;

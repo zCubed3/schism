@@ -199,66 +199,32 @@ scAssemblerState scAssembler::AssembleGroupOne(std::vector<uint8_t>& program,
                                                 const std::vector<std::string>& args) {
     uint32_t encoded = 0x0000;
 
-    uint8_t aRegister = DecodeRegister(args[0]);
-    uint8_t bRegister = DecodeRegister(args[1]);
-
     SetGroup(scInstructionGroup::GroupOne, encoded);
 
     // TODO: Refactor this
-    if (op == "ADD_F32_F32") {
-        scGroupOneSubOperations subOp = scGroupOneSubOperations::SubOpAdd;
+    if (op == "ALU_F32_F32") {
+        scGroupOneSubOperations subOp;
         SetInstruction(scGroupOneOperations::OpALUF32F32, encoded);
 
-        for (int b = 0; b < 4; b++) {
-            SetBit(encoded, 12 + b, ((int)subOp) & (1 << b));
+        // Parse the subop
+        if (args[0] == "ADD") {
+            subOp = scGroupOneSubOperations::SubOpAdd;
+        } else if (args[0] == "SUB") {
+            subOp = scGroupOneSubOperations::SubOpSub;
+        } else if (args[0] == "MUL") {
+            subOp = scGroupOneSubOperations::SubOpMul;
+        } else if (args[0] == "DIV") {
+            subOp = scGroupOneSubOperations::SubOpDiv;
+        } else if (args[0] == "MOD") {
+            subOp = scGroupOneSubOperations::SubOpMod;
+        } else if (args[0] == "POW") {
+            subOp = scGroupOneSubOperations::SubOpPow;
+        } else {
+            return scAssemblerState::InvalidArgument;
         }
 
-        for (int b = 0; b < 8; b++) {
-            SetBit(encoded, 16 + b, aRegister & (1 << b));
-            SetBit(encoded, 24 + b, bRegister & (1 << b));
-        }
-
-        Emit(program, encoded);
-        return scAssemblerState::OK;
-    }
-
-    if (op == "SUB_F32_F32") {
-        scGroupOneSubOperations subOp = scGroupOneSubOperations::SubOpSub;
-        SetInstruction(scGroupOneOperations::OpALUF32F32, encoded);
-
-        for (int b = 0; b < 4; b++) {
-            SetBit(encoded, 12 + b, ((int)subOp) & (1 << b));
-        }
-
-        for (int b = 0; b < 8; b++) {
-            SetBit(encoded, 16 + b, aRegister & (1 << b));
-            SetBit(encoded, 24 + b, bRegister & (1 << b));
-        }
-
-        Emit(program, encoded);
-        return scAssemblerState::OK;
-    }
-
-    if (op == "MUL_F32_F32") {
-        scGroupOneSubOperations subOp = scGroupOneSubOperations::SubOpMul;
-        SetInstruction(scGroupOneOperations::OpALUF32F32, encoded);
-
-        for (int b = 0; b < 4; b++) {
-            SetBit(encoded, 12 + b, ((int)subOp) & (1 << b));
-        }
-
-        for (int b = 0; b < 8; b++) {
-            SetBit(encoded, 16 + b, aRegister & (1 << b));
-            SetBit(encoded, 24 + b, bRegister & (1 << b));
-        }
-
-        Emit(program, encoded);
-        return scAssemblerState::OK;
-    }
-
-    if (op == "DIV_F32_F32") {
-        scGroupOneSubOperations subOp = scGroupOneSubOperations::SubOpDiv;
-        SetInstruction(scGroupOneOperations::OpALUF32F32, encoded);
+        uint8_t aRegister = DecodeRegister(args[1]);
+        uint8_t bRegister = DecodeRegister(args[2]);
 
         for (int b = 0; b < 4; b++) {
             SetBit(encoded, 12 + b, ((int)subOp) & (1 << b));
