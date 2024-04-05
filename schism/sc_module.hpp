@@ -65,6 +65,10 @@ protected:
     std::vector<uint8_t> _code {};
 
 public:
+    scModule(const std::vector<uint8_t>& code) {
+        this->_code = code;
+    }
+
     template<typename T>
     scModuleState ReadValue(uint32_t cur, T& outValue) const {
         if (cur + (sizeof(T) - 1) >= _code.size())
@@ -75,6 +79,11 @@ public:
     }
 
     scModuleState LoadFromFile(const std::string& path);
+
+    [[nodiscard]]
+    std::vector<uint8_t> GetCode() const {
+        return _code;
+    }
 };
 
 #endif //SCHISM_SC_MODULE_HPP

@@ -58,6 +58,8 @@ public:
     scAssembledProgram(const std::vector<uint8_t>& binary, scModuleType type);
 
     void WriteToFile(const std::string& path);
+
+    scModule CreateModule() const;
 };
 
 class scAssembler {
@@ -97,6 +99,8 @@ public:
     }
 
     scAssemblerState CompileSourceFile(const std::string& path, scAssembledProgram& outProgram);
+
+    scAssemblerState CompileSourceText(const std::string& text, scAssembledProgram& outProgram);
 
     uint8_t DecodeRegister(const std::string& name);
 

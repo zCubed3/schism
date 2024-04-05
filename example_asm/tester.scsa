@@ -20,27 +20,22 @@ alu_f32_f32 div %V0 %V1
 ; Load vector 1 (to center our UV)
 set_f32 %S4 0.5
 set_f32 %S5 0.5
+set_f32 %S6 0.0
+set_f32 %S7 0.0
 
 alu_f32_f32 sub %V0 %V1
 
 ; Load vector 1 (to center our UV)
 set_f32 %S4 2.0
 set_f32 %S5 2.0
+set_f32 %S6 1.0
+set_f32 %S7 1.0
 
 alu_f32_f32 mul %V0 %V1
 
 ; ABS our U and V
 abs_f32 %S0
 abs_f32 %S1
-
-; Load vector 1 (again)
-set_f32 %S4 255.0
-set_f32 %S5 255.0
-set_f32 %S6 255.0
-set_f32 %S7 255.0
-
-; Multiply them using a 4:4 SIMD
-alu_f32_f32 mul %V0 %V1
 
 ; Output to the framebuffer
 mov %FB0 %S0

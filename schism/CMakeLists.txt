@@ -6,17 +6,16 @@ file(GLOB_RECURSE SCHISM_SRC_FILES
     *.hpp
 )
 
-add_executable(schism ${SCHISM_SRC_FILES})
+add_library(Schism STATIC ${SCHISM_SRC_FILES})
 
-target_include_directories(schism PUBLIC
+target_include_directories(Schism PUBLIC
     ${SCHISM_ROOT_DIR}
-    ${stb_SOURCE_DIR}
 )
 
 add_custom_target(copy-asm ALL
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${SCHISM_ROOT_DIR}/example_asm
-        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}asm
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${SCHISM_ROOT_DIR}/example_asm
+    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}asm
 )
 
-add_dependencies(schism copy-asm)
+add_dependencies(Schism copy-asm)

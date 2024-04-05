@@ -32,9 +32,10 @@
 #include "sc_assembler.hpp"
 
 #include <fstream>
+#include <sstream>
+#include <iostream>
 
 #include <schism/sc_operations.hpp>
-#include <iostream>
 
 void scAssembledProgram::WriteToFile(const std::string& path) {
     std::ofstream file(path, std::ofstream::binary);
@@ -56,13 +57,31 @@ scAssembledProgram::scAssembledProgram(const std::vector<uint8_t>& binary, scMod
     };
 }
 
+scModule scAssembledProgram::CreateModule() const {
+    return scModule(binary);
+}
+
 scAssemblerState scAssembler::CompileSourceFile(const std::string& path, scAssembledProgram& outProgram) {
-    std::ifstream file(path);
+    std::ifstream file(path, std::ifstream::ate);
+
+    std::string text;
+    size_t len = file.tellg();
+
+    text.resize(len + 1);
+
+    file.seekg(0);
+    file.read(text.data(), len);
+
+    return CompileSourceText(text, outProgram);
+}
+
+scAssemblerState scAssembler::CompileSourceText(const std::string& text, scAssembledProgram& outProgram) {
     std::string line;
+    std::stringstream stream(text);
 
     std::vector<uint8_t> program;
 
-    while (std::getline(file, line)) {
+    while (std::getline(stream, line)) {
         // TODO: Trim the line of whitespace
 
         for (char& ch: line)
@@ -125,6 +144,11 @@ scAssemblerState scAssembler::CompileSourceFile(const std::string& path, scAssem
 
         if (state == scAssemblerState::UnknownInstruction) {
             std::cout << "[scAssembler]: Unknown group two instruction (" << operation << ")" << std::endl;
+            return state;
+        }
+
+        if (state == scAssemblerState::NoInstructionFound) {
+            std::cout << "[scAssembler]: Unknown instruction (" << operation << ")" << std::endl;
             return state;
         }
     }
@@ -284,6 +308,9 @@ scAssemblerState scAssembler::AssembleGroupTwo(std::vector<uint8_t>& program,
     uint32_t encoded = 0x0000;
 
     SetGroup(scInstructionGroup::GroupTwo, encoded);
+
+    if (args.size() < 1)
+        return scAssemblerState::NoInstructionFound;
 
     uint8_t targetRegister = DecodeRegister(args[0]);
 

@@ -17,20 +17,47 @@ set(CMAKE_PDB_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/lib")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY})
 
+# ===========
+#   Options
+# ===========
+option(SCHISM_BUILD_GUI "Builds the GUI" ON)
+
 # ================
 #   Dependencies
 # ================
 include(FetchContent)
 
 FetchContent_Declare(
-        STB
+        stb
         GIT_REPOSITORY https://github.com/nothings/stb.git
         GIT_TAG        ae721c50eaf761660b4f90cc590453cdb0c2acd0
 )
 
-FetchContent_MakeAvailable(STB)
+FetchContent_MakeAvailable(stb)
+
+if (SCHISM_BUILD_GUI)
+
+    FetchContent_Declare(
+            ImGui
+            GIT_REPOSITORY https://github.com/ocornut/imgui.git
+            GIT_TAG        085781f5ca5372d5fc804d7e44b5bf27a8994af7
+    )
+
+    FetchContent_Declare(
+            sdl2
+            GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
+            GIT_TAG        f461d91cd265d7b9a44b4d472b1df0c0ad2855a0
+    )
+
+    FetchContent_MakeAvailable(imgui sdl2)
+
+endif()
 
 # ============
 #   Projects
 # ============
 add_subdirectory(schism)
+
+if (SCHISM_BUILD_GUI)
+    add_subdirectory(schism_gui)
+endif()
