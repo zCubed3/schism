@@ -29,19 +29,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //====================================================================================
 
-#include <iostream>
-#include <array>
-#include <vector>
 #include <string>
-#include <optional>
-#include <fstream>
-#include <algorithm>
-#include <cmath>
-#include <chrono>
-#include <thread>
-
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include <stb_image_write.h>
 
 #include <SDL.h>
 

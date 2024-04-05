@@ -97,5 +97,18 @@ D = RESERVED (12 Bits)
 | LOAD_F32_RX | `ld_f32 %REG IMM_PTR`  | `0b00000001` |
 |   ABS_F32   |     `abs_f32 %REG`     | `0b00000010` |
 
+### Group Two `0x3` Instructions
 
+### Info
+---
+These operations all operate in SIMD mode, taking only V0-V7 registers
 
+### Encoding / Decoding
+---
+``
+
+|    NAME     |          ASM           |  OPERATION   |
+| :---------: | :--------------------: | :----------: |
+| SET_F32_RX  | `set_f32 %REG IMM_VAL` | `0b00000000` |
+| LOAD_F32_RX | `ld_f32 %REG IMM_PTR`  | `0b00000001` |
+|   ABS_F32   |     `abs_f32 %REG`     | `0b00000010` |

@@ -27,14 +27,6 @@ option(SCHISM_BUILD_GUI "Builds the GUI" ON)
 # ================
 include(FetchContent)
 
-FetchContent_Declare(
-        stb
-        GIT_REPOSITORY https://github.com/nothings/stb.git
-        GIT_TAG        ae721c50eaf761660b4f90cc590453cdb0c2acd0
-)
-
-FetchContent_MakeAvailable(stb)
-
 if (SCHISM_BUILD_GUI)
 
     FetchContent_Declare(
