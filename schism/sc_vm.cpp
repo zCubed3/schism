@@ -3,7 +3,7 @@
 #include <iostream>
 
 #define ENUM_DEBUG_REGISTER_NAME(VAL) \
-    case scRegister::##VAL##:         \
+    case scRegister::VAL:         \
         return #VAL;
 
 const char* scGetRegisterName(scRegister regIndex) {

@@ -509,7 +509,7 @@ int main(int argc, char* argv[]) {
     scAssembler assembler;
 
     scAssembledProgram program;
-    scAssemblerState state = assembler.CompileSourceFile("./asm/tester.scsa", program);
+    scAssemblerState state = assembler.CompileSourceFile("./asm/circular_uvs.scsa", program);
 
     if (state != scAssemblerState::OK) {
         return 1;

@@ -1,6 +1,14 @@
+; Copyright (c) 2024, Liam Reese
 ;
-; Schism Test Program
+; Schism Circular UVs
 ;
+;
+; This program will generate a set of UV coordinates that are circular
+; As-in, the coordinates will mirror on the X & Y planes in the middle
+;
+; If you were to sample a texture using this the texture would be tiled 4 times on each axis and appear mirrored
+;
+
 
 ; Load vector 0
 ld_f32 %S0 00
